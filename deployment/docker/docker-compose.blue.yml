@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────
+# docker-compose.blue.yml
+# ─────────────────────────────────────────────────────────
+# Runs the BLUE slot of our application on port 5001
+# Blue = one of two deployment slots
+# When Blue is active, users are being served from port 5001 via Nginx
+# ─────────────────────────────────────────────────────────
+
+services:
+  flask-blue:
+    # Use the image we built with docker build
+    image: flask-app:latest
+
+    # Name the container so we can find it easily
+    container_name: flask-blue
+
+    # Map host port 5001 → container port 5000
+    # So: curl localhost:5001 → reaches our Flask app inside container
+    ports:
+      - "5001:5000"
+
+    # Environment variables passed into the container
+    # These set the VERSION and COLOR the app displays
+    environment:
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+      - APP_COLOR=blue
+
+    # Restart policy: if container crashes, Docker restarts it
+    restart: unless-stopped
+
+    # Health check: Docker itself checks if the app is healthy
+    # every 30 seconds, timing out after 10 seconds
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

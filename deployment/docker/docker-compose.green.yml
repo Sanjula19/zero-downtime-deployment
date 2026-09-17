@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────
+# docker-compose.green.yml
+# ─────────────────────────────────────────────────────────
+# Runs the GREEN slot of our application on port 5002
+# Green = the second deployment slot
+# When Green is active, users are being served from port 5002 via Nginx
+# ─────────────────────────────────────────────────────────
+
+services:
+  flask-green:
+    # Use the image we built with docker build
+    image: flask-app:latest
+
+    # Name the container so we can find it easily
+    container_name: flask-green
+
+    # Map host port 5002 → container port 5000
+    # So: curl localhost:5002 → reaches our Flask app inside container
+    ports:
+      - "5002:5000"
+
+    # Environment variables passed into the container
+    environment:
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+      - APP_COLOR=green
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check: Docker itself monitors container health
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

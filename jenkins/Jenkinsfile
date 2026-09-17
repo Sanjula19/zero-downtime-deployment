@@ -1,0 +1,208 @@
+// ─────────────────────────────────────────────────────────────
+// Jenkinsfile — CI/CD Pipeline Definition
+// jenkins/Jenkinsfile
+// ─────────────────────────────────────────────────────────────
+//
+// WHAT THIS FILE IS:
+//   This file tells Jenkins exactly what to do every time
+//   code is pushed to GitHub.
+//
+//   Jenkins reads this file and runs each 'stage' in order.
+//   If any stage fails → Jenkins stops and marks the build FAILED.
+//
+// STAGES:
+//   1. Checkout  — download code from GitHub
+//   2. Test      — run Python tests
+//   3. Build     — create Docker image
+//   4. Deploy    — start new container (opposite Blue/Green)
+//   5. Health    — check if new container is healthy
+//   6. Switch    — update Nginx to point to new container
+//
+// ─────────────────────────────────────────────────────────────
+
+pipeline {
+
+    // 'any' means: run on any available Jenkins agent (executor)
+    agent any
+
+    // ── Environment variables available to all stages ─────────
+    environment {
+        IMAGE_NAME  = "flask-app"
+        // BUILD_NUMBER is auto-set by Jenkins (1, 2, 3, ...)
+        IMAGE_TAG   = "v${BUILD_NUMBER}"
+        // The version shown in the app UI
+        APP_VERSION = "1.${BUILD_NUMBER}.0"
+        // Path to deployment scripts
+        SCRIPTS_DIR = "deployment/scripts"
+    }
+
+    // ── Pipeline options ──────────────────────────────────────
+    options {
+        // Keep logs of last 10 builds (saves disk space)
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        // Stop the build if it takes longer than 15 minutes
+        timeout(time: 15, unit: 'MINUTES')
+        // Add timestamps to all log lines
+        timestamps()
+    }
+
+    stages {
+
+        // ── Stage 1: Checkout ─────────────────────────────────
+        stage('1. Checkout') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo 'Stage 1: Downloading code from GitHub...'
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                // 'checkout scm' means: download the code from
+                // whatever GitHub repo triggered this build
+                checkout scm
+
+                echo "Build #${BUILD_NUMBER} — Version ${APP_VERSION}"
+            }
+        }
+
+        // ── Stage 2: Run Tests ────────────────────────────────
+        stage('2. Run Tests') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo 'Stage 2: Running automated tests...'
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                sh '''
+                    cd app
+
+                    # Install packages in a virtual environment
+                    python3 -m venv .venv
+                    . .venv/bin/activate
+
+                    # Install dependencies
+                    pip install -r requirements.txt --quiet
+
+                    # Run tests with verbose output
+                    python -m pytest tests/ -v --tb=short
+
+                    # Clean up virtual environment
+                    deactivate
+                '''
+
+                // If any test fails, Jenkins stops HERE.
+                // Nothing gets deployed. System stays safe.
+            }
+        }
+
+        // ── Stage 3: Build Docker Image ───────────────────────
+        stage('3. Build Docker Image') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo "Stage 3: Building Docker image ${IMAGE_NAME}:${IMAGE_TAG}..."
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                sh '''
+                    # Build the Docker image from app/Dockerfile
+                    docker build \
+                        --tag ${IMAGE_NAME}:${IMAGE_TAG} \
+                        --tag ${IMAGE_NAME}:latest \
+                        ./app
+
+                    # Verify image was created
+                    echo "Image created:"
+                    docker images ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        // ── Stage 4: Deploy ───────────────────────────────────
+        stage('4. Deploy') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo 'Stage 4: Deploying to standby slot...'
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                sh '''
+                    chmod +x ${SCRIPTS_DIR}/deploy.sh
+                    APP_VERSION=${APP_VERSION} ${SCRIPTS_DIR}/deploy.sh
+                '''
+
+                // At this point:
+                // - New container is STARTING in the standby slot
+                // - Old container is STILL RUNNING serving users
+                // - Nginx has NOT changed yet
+                // - Users see ZERO interruption
+            }
+        }
+
+        // ── Stage 5: Health Check ─────────────────────────────
+        stage('5. Health Check') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo 'Stage 5: Validating new container health...'
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                sh '''
+                    chmod +x ${SCRIPTS_DIR}/health-check.sh
+                    ${SCRIPTS_DIR}/health-check.sh
+                '''
+
+                // If health check passes → continues to Stage 6
+                // If health check fails → falls to post.failure → rollback
+            }
+        }
+
+        // ── Stage 6: Switch Traffic ───────────────────────────
+        stage('6. Switch Traffic') {
+            steps {
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+                echo 'Stage 6: Switching Nginx to new version...'
+                echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+                sh '''
+                    chmod +x ${SCRIPTS_DIR}/switch-traffic.sh
+                    ${SCRIPTS_DIR}/switch-traffic.sh
+                '''
+
+                // After this:
+                // - Nginx now points to new container
+                // - Users are on the new version
+                // - Old container is stopped
+                // - ZERO downtime happened
+            }
+        }
+
+    } // end stages
+
+    // ── Post-build actions ────────────────────────────────────
+    // These run AFTER all stages, based on build result
+    post {
+
+        success {
+            echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+            echo "DEPLOYMENT SUCCESSFUL ✓"
+            echo "Version ${APP_VERSION} is now LIVE"
+            echo "Build #${BUILD_NUMBER} completed at ${new Date()}"
+            echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+        }
+
+        failure {
+            echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+            echo "DEPLOYMENT FAILED — TRIGGERING ROLLBACK"
+            echo '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+
+            sh '''
+                chmod +x deployment/scripts/rollback.sh
+                deployment/scripts/rollback.sh
+            '''
+
+            echo 'Rollback complete. Old version is still running.'
+        }
+
+        always {
+            echo "Build #${BUILD_NUMBER} finished."
+            // Clean up Docker build cache periodically
+            sh 'docker image prune -f || true'
+        }
+
+    } // end post
+
+} // end pipeline

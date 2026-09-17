@@ -1,0 +1,13 @@
+# Python packages our Flask app needs
+# Jenkins installs these before running tests
+# Docker installs these when building the image
+
+# Web framework - the core of our app
+flask==3.0.3
+
+# Gunicorn - production web server
+# (better than Flask's built-in development server)
+gunicorn==22.0.0
+
+# Testing framework - Jenkins uses this to run our tests
+pytest==8.3.2
