@@ -18,7 +18,7 @@ set -e
 
 # ── Paths ─────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NGINX_CONF="$PROJECT_ROOT/deployment/nginx/nginx.conf"
 NGINX_LIVE="/etc/nginx/sites-available/flask-app"
 STATE_FILE="/tmp/active_color"
