@@ -23,6 +23,8 @@ WORKDIR /app
 # Why? Docker caches each step. If requirements don't change,
 # Docker skips re-installing packages on the next build = faster builds
 COPY requirements.txt .
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Step 4: Install our Python packages
 # --no-cache-dir = don't save download cache (keeps image smaller)
