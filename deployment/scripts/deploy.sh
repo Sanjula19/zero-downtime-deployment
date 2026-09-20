@@ -19,7 +19,7 @@ set -e  # Stop immediately if any command fails
 
 # ── Paths ────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOCKER_DIR="$PROJECT_ROOT/deployment/docker"
 STATE_FILE="/tmp/active_color"         # Records which color is currently live
 NEW_COLOR_FILE="/tmp/new_color"        # Records which color we just deployed
