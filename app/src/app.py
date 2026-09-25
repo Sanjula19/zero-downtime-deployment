@@ -74,6 +74,13 @@ def health():
     Returns 200 = healthy (deployment succeeds)
     Returns anything else = unhealthy (rollback triggers)
     """
+    if os.environ.get("FORCE_UNHEALTHY") == "true":
+        return jsonify({
+            "status": "unhealthy",
+            "error": "Database connection failed",
+            "version": VERSION
+        }), 500
+
     return jsonify({
         "status": "healthy",
         "version": VERSION,
