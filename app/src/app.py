@@ -68,17 +68,12 @@ def home():
 
 @app.route("/health")
 def health():
-    """
-    Health check endpoint.
-    Jenkins hits this URL after every deployment.
-    Returns 200 = healthy (deployment succeeds)
-    Returns anything else = unhealthy (rollback triggers)
-    """
+    # INTENTIONALLY BROKEN for Stage 2 failure testing
     return jsonify({
-        "status": "healthy",
-        "version": VERSION,
-        "color": APP_COLOR
-    }), 200
+        "status": "unhealthy",
+        "error": "Database connection failed",
+        "version": VERSION
+    }), 500
 
 
 @app.route("/version")
