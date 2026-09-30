@@ -122,7 +122,7 @@ pipeline {
 
                 sh '''
                     chmod +x ${SCRIPTS_DIR}/deploy.sh
-                    FORCE_UNHEALTHY=true APP_VERSION=${APP_VERSION} ${SCRIPTS_DIR}/deploy.sh
+                    APP_VERSION=${APP_VERSION} ${SCRIPTS_DIR}/deploy.sh
                 '''
 
                 // At this point:
