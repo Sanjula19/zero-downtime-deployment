@@ -13,7 +13,7 @@
 # Step 1: Start from the official Python 3.11 image
 # 'slim' = smaller size (removes things we don't need)
 # This is like starting with a clean computer that already has Python installed
-FROM python:3.11-sliim
+FROM python:3.11-slim
 
 # Step 2: Set the working directory inside the container
 # All our files will go into /app
