@@ -23,6 +23,7 @@ services:
     environment:
       - APP_VERSION=${APP_VERSION:-1.0.0}
       - APP_COLOR=green
+      - FORCE_UNHEALTHY=${FORCE_UNHEALTHY:-false}
 
     # Restart policy
     restart: unless-stopped

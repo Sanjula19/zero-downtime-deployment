@@ -24,6 +24,7 @@ services:
     environment:
       - APP_VERSION=${APP_VERSION:-1.0.0}
       - APP_COLOR=blue
+      - FORCE_UNHEALTHY=${FORCE_UNHEALTHY:-false}
 
     # Restart policy: if container crashes, Docker restarts it
     restart: unless-stopped
