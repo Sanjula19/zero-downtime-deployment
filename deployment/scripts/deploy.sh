@@ -68,7 +68,7 @@ docker rm   "flask-$NEW_COLOR" 2>/dev/null || echo "  (Nothing to remove - that'
 echo ""
 echo "► Starting $NEW_COLOR container with version $APP_VERSION..."
 
-APP_VERSION="$APP_VERSION" docker compose \
+APP_VERSION="$APP_VERSION" FORCE_UNHEALTHY="${FORCE_UNHEALTHY:-false}" docker compose \
     -f "$DOCKER_DIR/$COMPOSE_FILE" \
     up -d
 
